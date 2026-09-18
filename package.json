@@ -1,0 +1,19 @@
+{
+  "name": "trustgov-root",
+  "version": "1.0.0",
+  "description": "Verify Before You Trust - Blockchain-Based Government Officer Identity Verification Platform",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "migrate": "node backend/dist/db/migrate.js",
+    "seed": "node backend/dist/db/seed.js",
+    "build:backend": "npm run build --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "build": "npm run build:backend && npm run build:frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
