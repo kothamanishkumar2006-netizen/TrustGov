@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Award, Shield, CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { User, Shield, CheckCircle2, XCircle, AlertCircle, Clock, Key, Copy, Check, Fingerprint } from 'lucide-react';
 
 const OfficerDashboard: React.FC = () => {
   const { user, officerDetails } = useAuth();
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -82,31 +89,82 @@ const OfficerDashboard: React.FC = () => {
           </div>
 
           {/* Cryptographic DID Metadata */}
-          <div className="glass-panel rounded-xl p-6 space-y-5">
-            <h3 className="text-sm font-bold tracking-wider text-slate-200 uppercase border-b border-slate-900 pb-3 flex items-center gap-2">
-              <Award className="h-4 w-4 text-cyan-400" /> Cryptographic Identity
-            </h3>
+          <div className="glass-panel rounded-xl p-6 space-y-5 border border-cyan-500/20">
+            <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+              <h3 className="text-sm font-bold tracking-wider text-slate-200 uppercase flex items-center gap-2">
+                <Fingerprint className="h-4 w-4 text-cyan-400" /> Cryptographic Identity
+              </h3>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+                Phase 3
+              </span>
+            </div>
 
             <div className="space-y-4">
+              {/* DID */}
               <div>
-                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Decentralized Identifier (DID)</span>
-                <span className="text-xs font-mono break-all text-cyan-400 block mt-1 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 block uppercase tracking-wider font-bold">
+                    Decentralized Identifier (DID)
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(officerDetails?.did || 'did:trustgov:demo:cib:tg-off-001', 'did')}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedField === 'did' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copiedField === 'did' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <span className="text-xs font-mono break-all text-cyan-300 block mt-1 bg-slate-900/80 p-2.5 rounded border border-slate-800 select-all">
                   {officerDetails?.did || 'did:trustgov:demo:cib:tg-off-001'}
                 </span>
               </div>
 
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Credential Status</span>
-                <span className={`inline-block text-[10px] font-bold tracking-wider px-2 py-0.5 rounded mt-1.5 uppercase ${getStatusColor(officerDetails?.credential_status || 'ACTIVE')}`}>
-                  {officerDetails?.credential_status || 'ACTIVE'}
+              {/* Algorithm & Status */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="text-[10px] text-slate-400 block uppercase tracking-wider font-bold">
+                    Key Type
+                  </span>
+                  <span className="inline-block text-xs font-mono font-semibold px-2 py-1 rounded mt-1 bg-slate-900 text-indigo-300 border border-indigo-500/30">
+                    {officerDetails?.key_type || 'Ed25519'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 block uppercase tracking-wider font-bold">
+                    Identity Status
+                  </span>
+                  <span className={`inline-block text-[10px] font-bold tracking-wider px-2 py-1 rounded mt-1 uppercase ${getStatusColor(officerDetails?.did_status || user?.status || 'ACTIVE')}`}>
+                    {officerDetails?.did_status || user?.status || 'ACTIVE'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Public Verification Key */}
+              <div className="pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 block uppercase tracking-wider font-bold flex items-center gap-1">
+                    <Key className="h-3 w-3 text-cyan-400" /> Public Verification Key
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(officerDetails?.public_key || '04-mock-public-key', 'pubKey')}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedField === 'pubKey' ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copiedField === 'pubKey' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <span className="text-[10px] font-mono break-all text-slate-300 block mt-1 bg-slate-900/60 p-2 rounded border border-slate-800 max-h-20 overflow-y-auto select-all">
+                  {officerDetails?.public_key || 'z6MkemMNhF7WuBVhjeSexMQfCn9EJRgp3H43ULEjPGz9RpUJ'}
                 </span>
               </div>
 
-              <div className="pt-2">
-                <span className="text-[10px] text-slate-500 block uppercase tracking-wider">Public Key (Secp256k1)</span>
-                <span className="text-[10px] font-mono break-all text-slate-500 block mt-1 bg-slate-900/30 p-2 rounded border border-slate-900 max-h-16 overflow-y-auto">
-                  {officerDetails?.public_key || '04-mock-secp256k1-public-key-for-demo-purposes'}
-                </span>
+              {/* Officer Explanation Banner */}
+              <div className="p-3 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-cyan-300 text-[11px] leading-relaxed">
+                <strong className="block text-white font-semibold mb-0.5">
+                  Verifiable Digital Identity Active
+                </strong>
+                This is your cryptographically verifiable digital identity. Citizens and automated verification gateways use your public key to verify your official actions without exposing sensitive government credentials.
               </div>
             </div>
           </div>

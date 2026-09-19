@@ -6,6 +6,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
+import OfficerManagement from './pages/OfficerManagement';
 import OfficerDashboard from './pages/OfficerDashboard';
 import CitizenDashboard from './pages/CitizenDashboard';
 
@@ -25,6 +26,17 @@ const App: React.FC = () => {
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <DashboardLayout>
                   <AdminDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/officers"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <DashboardLayout>
+                  <OfficerManagement />
                 </DashboardLayout>
               </ProtectedRoute>
             }

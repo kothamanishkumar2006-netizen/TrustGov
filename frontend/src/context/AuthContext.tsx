@@ -17,6 +17,8 @@ export interface OfficerDetails {
   jurisdiction: string;
   did: string;
   public_key: string;
+  key_type?: string;
+  did_status?: string;
   credential_status: string;
   expires_at: string;
 }

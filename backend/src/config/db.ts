@@ -18,6 +18,7 @@ class InMemoryDB {
   auditLogs: any[] = [];
   verificationSessions: any[] = [];
   ivrsessions: any[] = [];
+  didIdentities: any[] = [];
 
   constructor() {
     this.seed();
@@ -140,13 +141,29 @@ class InMemoryDB {
         id: oId,
         user_id: uId,
         officer_code: codes[i],
+        full_name: officerNames[i],
         department: departments[i],
         designation: designations[i],
         jurisdiction: jurisdictions[i],
+        official_email: officerEmails[i],
+        official_phone: i === 0 ? '+91 99999 22222' : `+91 99999 0000${i}`,
         status: statuses[i],
         did: `did:trustgov:demo:${deptCode}:${codes[i].toLowerCase()}`,
         public_key: `04-${i}-mock-secp256k1-public-key-for-demo-purposes-${codes[i]}`,
-        created_at: new Date(),
+        created_at: new Date(Date.now() - (6 - i) * 3600000),
+        updated_at: new Date()
+      });
+
+      const demoDid = `did:trustgov:550e8400-e29b-41d4-a716-44665544000${i + 1}`;
+      const demoPubKey = 'z6MkemMNhF7WuBVhjeSexMQfCn9EJRgp3H43ULEjPGz9RpUJ';
+      this.didIdentities.push({
+        id: `did-id-${i + 1}`,
+        officer_id: oId,
+        did: demoDid,
+        public_key: demoPubKey,
+        key_type: 'Ed25519',
+        status: statuses[i],
+        created_at: new Date(Date.now() - (6 - i) * 3600000),
         updated_at: new Date()
       });
 
@@ -266,14 +283,15 @@ class MemoryPool {
     // 5. Register insertion
     if (queryNormalized.startsWith('INSERT INTO users')) {
       const id = `user-id-${Date.now()}`;
+      const isOfficer = queryNormalized.includes("'OFFICER'");
       const newUser = {
         id,
         name: params[0],
         email: params[1],
         phone: params[2],
         password_hash: params[3],
-        role: 'CITIZEN',
-        status: 'ACTIVE',
+        role: isOfficer ? 'OFFICER' : (params[4] || 'CITIZEN'),
+        status: (isOfficer && params[4]) ? params[4] : 'ACTIVE',
         created_at: new Date(),
         updated_at: new Date()
       };
@@ -306,10 +324,15 @@ class MemoryPool {
       const officer = memDB.officers.find(o => o.user_id === params[0]);
       if (officer) {
         const credential = memDB.credentials.find(c => c.officer_id === officer.id);
+        const didRec = memDB.didIdentities.find(d => d.officer_id === officer.id);
         return {
           rows: [{
             ...officer,
             officer_id: officer.id,
+            did: didRec ? didRec.did : officer.did,
+            public_key: didRec ? didRec.public_key : officer.public_key,
+            key_type: didRec ? didRec.key_type : 'Ed25519',
+            did_status: didRec ? didRec.status : officer.status,
             credential_status: credential ? credential.status : 'ACTIVE',
             expires_at: credential ? credential.expires_at : new Date()
           }]
@@ -393,6 +416,185 @@ class MemoryPool {
         };
       }).sort((a, b) => b.created_at.getTime() - a.created_at.getTime()).slice(0, 5);
       return { rows };
+    }
+
+    // Phase 2: Officer Management Query Handlers
+    // 13. Officer uniqueness check by code
+    if (queryNormalized.includes('FROM officers WHERE officer_code = $1') || queryNormalized.includes('FROM officers WHERE LOWER(officer_code) = LOWER($1)')) {
+      const match = memDB.officers.find(o => 
+        o.officer_code?.toLowerCase() === params[0]?.toLowerCase() && 
+        (!params[1] || o.id !== params[1])
+      );
+      return { rows: match ? [match] : [] };
+    }
+
+    // 14. Officer uniqueness check by official email
+    if (queryNormalized.includes('FROM officers WHERE official_email = $1') || queryNormalized.includes('FROM officers WHERE LOWER(official_email) = LOWER($1)')) {
+      const match = memDB.officers.find(o => 
+        o.official_email?.toLowerCase() === params[0]?.toLowerCase() && 
+        (!params[1] || o.id !== params[1])
+      );
+      return { rows: match ? [match] : [] };
+    }
+
+    // 15. Single officer by ID
+    if (queryNormalized.includes('FROM officers WHERE id = $1') || queryNormalized.includes('FROM officers o WHERE o.id = $1')) {
+      const off = memDB.officers.find(o => o.id === params[0]);
+      return { rows: off ? [off] : [] };
+    }
+
+    // 16. Officers list
+    if (queryNormalized.includes('FROM officers') && !queryNormalized.includes('JOIN users u')) {
+      let filtered = [...memDB.officers];
+      return { rows: filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) };
+    }
+
+    // 17. Insert into officers
+    if (queryNormalized.startsWith('INSERT INTO officers')) {
+      const id = `officer-id-${Date.now()}`;
+      const newOfficer = {
+        id,
+        user_id: params[0],
+        officer_code: params[1],
+        full_name: params[2],
+        department: params[3],
+        designation: params[4],
+        jurisdiction: params[5],
+        official_email: params[6],
+        official_phone: params[7],
+        status: params[8] || 'ACTIVE',
+        did: null,
+        public_key: null,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      memDB.officers.unshift(newOfficer);
+      return { rows: [newOfficer] };
+    }
+
+    // 18. Update officer details
+    if (queryNormalized.startsWith('UPDATE officers SET full_name = $1')) {
+      const off = memDB.officers.find(o => o.id === params[5]);
+      if (off) {
+        off.full_name = params[0];
+        off.department = params[1];
+        off.designation = params[2];
+        off.jurisdiction = params[3];
+        off.official_phone = params[4];
+        off.updated_at = new Date();
+        const u = memDB.users.find(user => user.id === off.user_id);
+        if (u) {
+          u.name = params[0];
+          u.phone = params[4];
+          u.updated_at = new Date();
+        }
+        return { rows: [off] };
+      }
+      return { rows: [] };
+    }
+
+    // 19. Update officer status
+    if (queryNormalized.includes('UPDATE officers SET status = $1')) {
+      const off = memDB.officers.find(o => o.id === params[1]);
+      if (off) {
+        off.status = params[0];
+        off.updated_at = new Date();
+        const u = memDB.users.find(user => user.id === off.user_id);
+        if (u) {
+          u.status = (params[0] === 'ACTIVE') ? 'ACTIVE' : 'SUSPENDED';
+          u.updated_at = new Date();
+        }
+        // Cascade to linked didIdentities as required by Phase 3
+        const didRec = memDB.didIdentities.find(d => d.officer_id === off.id);
+        if (didRec) {
+          didRec.status = params[0];
+          didRec.updated_at = new Date();
+        }
+        return { rows: [off] };
+      }
+      return { rows: [] };
+    }
+
+    // 20. Update user status
+    if (queryNormalized.includes('UPDATE users SET status = $1')) {
+      const u = memDB.users.find(user => user.id === params[1]);
+      if (u) {
+        u.status = params[0];
+        u.updated_at = new Date();
+        return { rows: [u] };
+      }
+      return { rows: [] };
+    }
+
+    // 21. Update user details
+    if (queryNormalized.includes('UPDATE users SET name = $1')) {
+      const u = memDB.users.find(user => user.id === params[2]);
+      if (u) {
+        u.name = params[0];
+        u.phone = params[1];
+        u.updated_at = new Date();
+        return { rows: [u] };
+      }
+      return { rows: [] };
+    }
+
+    // 22. DID Identity lookup by officer ID
+    if (queryNormalized.includes('FROM did_identities WHERE officer_id = $1')) {
+      const didRec = memDB.didIdentities.find(d => d.officer_id === params[0]);
+      return { rows: didRec ? [didRec] : [] };
+    }
+
+    // 23. DID Identity lookup by DID string
+    if (queryNormalized.includes('FROM did_identities WHERE did = $1') || queryNormalized.includes('FROM did_identities WHERE LOWER(did) = LOWER($1)')) {
+      const didRec = memDB.didIdentities.find(d => d.did?.toLowerCase() === params[0]?.toLowerCase());
+      return { rows: didRec ? [didRec] : [] };
+    }
+
+    // 24. Insert into did_identities
+    if (queryNormalized.startsWith('INSERT INTO did_identities')) {
+      const newDid = {
+        id: `did-id-${Date.now()}`,
+        officer_id: params[0],
+        did: params[1],
+        public_key: params[2],
+        key_type: params[3] || 'Ed25519',
+        status: params[4] || 'ACTIVE',
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      memDB.didIdentities.unshift(newDid);
+
+      // Keep officer record in sync
+      const off = memDB.officers.find(o => o.id === params[0]);
+      if (off) {
+        off.did = params[1];
+        off.public_key = params[2];
+        off.updated_at = new Date();
+      }
+      return { rows: [newDid] };
+    }
+
+    // 25. Update did_identities status directly
+    if (queryNormalized.includes('UPDATE did_identities SET status = $1')) {
+      const didRec = memDB.didIdentities.find(d => d.officer_id === params[1] || d.did === params[1]);
+      if (didRec) {
+        didRec.status = params[0];
+        didRec.updated_at = new Date();
+        return { rows: [didRec] };
+      }
+      return { rows: [] };
+    }
+
+    // 26. Update officer legacy did and public key
+    if (queryNormalized.startsWith('UPDATE officers SET did = $1')) {
+      const off = memDB.officers.find(o => o.id === params[2]);
+      if (off) {
+        off.did = params[0];
+        off.public_key = params[1];
+        off.updated_at = new Date();
+        return { rows: [off] };
+      }
+      return { rows: [] };
     }
 
     console.warn(`MemoryPool unhandled query: ${queryNormalized}`);

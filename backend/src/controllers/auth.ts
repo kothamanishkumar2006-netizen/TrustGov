@@ -206,9 +206,16 @@ export async function getMe(req: AuthenticatedRequest, res: Response) {
     // If user is an officer, fetch extra officer metadata
     if (profile.role === 'OFFICER') {
       const officerQuery = `
-        SELECT o.id as officer_id, o.officer_code, o.department, o.designation, o.jurisdiction, o.did, o.public_key, c.status as credential_status, c.expires_at
+        SELECT o.id as officer_id, o.officer_code, o.department, o.designation, o.jurisdiction, 
+               COALESCE(d.did, o.did) as did, 
+               COALESCE(d.public_key, o.public_key) as public_key, 
+               COALESCE(d.key_type, 'Ed25519') as key_type, 
+               COALESCE(d.status, o.status) as did_status, 
+               c.status as credential_status, 
+               c.expires_at
         FROM officers o
         LEFT JOIN credentials c ON o.id = c.officer_id
+        LEFT JOIN did_identities d ON o.id = d.officer_id
         WHERE o.user_id = $1
       `;
       const officerRes = await pool.query(officerQuery, [userId]);

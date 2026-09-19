@@ -5,11 +5,16 @@ import path from 'path';
 async function runMigrations() {
   console.log('Starting database migrations...');
   try {
-    const migrationPath = path.resolve(__dirname, '../../../database/migrations/01_init.sql');
-    const sql = fs.readFileSync(migrationPath, 'utf8');
-
-    await pool.query(sql);
-    console.log('Database migrations completed successfully!');
+    const migrationsDir = path.resolve(__dirname, '../../../database/migrations');
+    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    
+    for (const file of files) {
+      console.log(`Running migration: ${file}...`);
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      await pool.query(sql);
+      console.log(`Completed: ${file}`);
+    }
+    console.log('All database migrations completed successfully!');
     process.exit(0);
   } catch (error) {
     console.error('Migration failed:', error);

@@ -10,6 +10,8 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
+import officerRoutes from './routes/officers';
+import didRoutes from './routes/did';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,7 +42,9 @@ app.use('/api/', limiter);
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin/officers', officerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/did', didRoutes);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

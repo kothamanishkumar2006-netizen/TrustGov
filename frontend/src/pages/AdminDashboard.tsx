@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Users, Award, Ban, ShieldAlert, AlertTriangle, Activity, Database, FileText } from 'lucide-react';
@@ -223,7 +224,9 @@ const AdminDashboard: React.FC = () => {
         <div className="glass-panel rounded-xl p-6 space-y-4">
           <h3 className="text-sm font-bold tracking-wider text-slate-200 uppercase flex items-center justify-between border-b border-slate-900 pb-3">
             <span>Recent Demo Officers Registered</span>
-            <span className="text-[10px] text-cyan-400 bg-cyan-950 border border-cyan-500/30 px-2 py-0.5 rounded">Phase 2 Enabled</span>
+            <Link to="/admin/officers" className="text-[11px] text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 hover:bg-cyan-950 border border-cyan-500/30 px-2.5 py-1 rounded transition-colors flex items-center gap-1 font-semibold normal-case">
+              Manage All Officers &rarr;
+            </Link>
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">

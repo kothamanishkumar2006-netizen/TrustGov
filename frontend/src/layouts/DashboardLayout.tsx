@@ -1,9 +1,11 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, LogOut } from 'lucide-react';
+import { Shield, LogOut, LayoutDashboard, Users } from 'lucide-react';
 
 const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
   const getRoleBadgeColor = (role?: string) => {
     switch (role) {
@@ -23,16 +25,46 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Brand/Logo */}
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-950 border border-cyan-500/30 text-cyan-400">
-              <Shield className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-extrabold tracking-tight text-white">
-              TRUST<span className="text-cyan-400">GOV</span>
-            </span>
-            <span className="text-[10px] uppercase font-semibold text-slate-500 border border-slate-800 rounded px-1.5 ml-2 hidden sm:inline">
-              Demo Platform
-            </span>
+          <div className="flex items-center gap-6">
+            <Link to={user?.role === 'ADMIN' ? '/admin' : (user?.role === 'OFFICER' ? '/officer' : '/citizen')} className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-950 border border-cyan-500/30 text-cyan-400">
+                <Shield className="h-5 w-5" />
+              </div>
+              <span className="text-lg font-extrabold tracking-tight text-white">
+                TRUST<span className="text-cyan-400">GOV</span>
+              </span>
+              <span className="text-[10px] uppercase font-semibold text-slate-500 border border-slate-800 rounded px-1.5 ml-1 hidden sm:inline">
+                Demo Platform
+              </span>
+            </Link>
+
+            {/* Admin Nav Tabs */}
+            {user?.role === 'ADMIN' && (
+              <nav className="hidden md:flex items-center gap-1 border-l border-slate-900 pl-6">
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    location.pathname === '/admin'
+                      ? 'bg-cyan-950/50 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                  }`}
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Overview
+                </Link>
+                <Link
+                  to="/admin/officers"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    location.pathname.startsWith('/admin/officers')
+                      ? 'bg-cyan-950/50 text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                  }`}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Officer Management
+                </Link>
+              </nav>
+            )}
           </div>
 
           {/* User profile actions */}
