@@ -37,6 +37,9 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+!.env.production.example
 
 # Serverless Webpack service states
 .webpack/
@@ -57,3 +60,12 @@ build/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Phase 6: Development Key Custody Vault (Strictly local, NEVER commit private keys)
+.keystore/
+*.key
+*.pem
+
+# Phase 9: Evidence storage (runtime uploads should never be committed)
+storage/
+

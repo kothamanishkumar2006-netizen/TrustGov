@@ -7,6 +7,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import OfficerManagement from './pages/OfficerManagement';
+import ReportManagement from './pages/ReportManagement';
+import IvrSimulator from './pages/IvrSimulator';
 import OfficerDashboard from './pages/OfficerDashboard';
 import CitizenDashboard from './pages/CitizenDashboard';
 
@@ -37,6 +39,49 @@ const App: React.FC = () => {
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <DashboardLayout>
                   <OfficerManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <DashboardLayout>
+                  <ReportManagement />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Interactive IVR Voice Accessibility Simulator */}
+          <Route
+            path="/admin/ivr-simulator"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'CITIZEN', 'OFFICER']}>
+                <DashboardLayout>
+                  <IvrSimulator />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ivr"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'CITIZEN', 'OFFICER']}>
+                <DashboardLayout>
+                  <IvrSimulator />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ivr-simulator"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'CITIZEN', 'OFFICER']}>
+                <DashboardLayout>
+                  <IvrSimulator />
                 </DashboardLayout>
               </ProtectedRoute>
             }

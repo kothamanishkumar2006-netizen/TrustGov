@@ -21,6 +21,8 @@ import {
   isValidDID,
   buildDIDDocument
 } from '../services/crypto';
+import { keyProvider } from '../services/keyProvider';
+import { issuerAuthority, ISSUER_DID } from '../services/issuer';
 
 /**
  * Admin: Issue a new cryptographically verifiable DID for an officer
@@ -61,9 +63,9 @@ export async function issueOfficerDID(req: AuthenticatedRequest, res: Response) 
       });
     }
 
-    // 4. Generate Ed25519 cryptographic key pair
-    const keyPair = generateEd25519KeyPair();
+    // 4. Provision signing key in KeyProvider custody & generate DID
     const did = generateDID();
+    const { publicKeyMultibase } = await keyProvider.createKey(officer.id, did);
     const initialStatus = officer.status; // Matches officer status (e.g. ACTIVE or SUSPENDED)
 
     // 5. Store DID in did_identities table (CRITICAL: private key is NEVER saved)
@@ -75,7 +77,7 @@ export async function issueOfficerDID(req: AuthenticatedRequest, res: Response) 
     const insertRes = await pool.query(insertQuery, [
       officer.id,
       did,
-      keyPair.publicKeyMultibase,
+      publicKeyMultibase,
       'Ed25519',
       initialStatus
     ]);
@@ -85,7 +87,7 @@ export async function issueOfficerDID(req: AuthenticatedRequest, res: Response) 
     try {
       await pool.query(
         'UPDATE officers SET did = $1, public_key = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-        [did, keyPair.publicKeyMultibase, officer.id]
+        [did, publicKeyMultibase, officer.id]
       );
     } catch (updateErr) {
       console.warn('Could not update legacy fields on officers table:', updateErr);
@@ -201,6 +203,16 @@ export async function resolveDID(req: Request, res: Response) {
           code: 'INVALID_DID_FORMAT',
           message: 'Malformed DID format. Expected: did:trustgov:<UUID>'
         }
+      });
+    }
+
+    // Direct resolution for TrustGov Root Issuer Authority
+    if (did.toLowerCase() === ISSUER_DID.toLowerCase()) {
+      const didDocument = issuerAuthority.getDIDDocument();
+      return res.status(200).json({
+        success: true,
+        data: didDocument,
+        ...didDocument
       });
     }
 

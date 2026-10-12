@@ -7,6 +7,7 @@ import {
   updateOfficerStatus
 } from '../controllers/officers';
 import { issueOfficerDID, getOfficerDID } from '../controllers/did';
+import { issueCredential, getOfficerCredentials } from '../controllers/credentials';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = Router();
@@ -24,5 +25,9 @@ router.patch('/:id/status', updateOfficerStatus as any);
 // Phase 3: DID Management routes for officers
 router.post('/:id/did', issueOfficerDID as any);
 router.get('/:id/did', getOfficerDID as any);
+
+// Phase 4: Verifiable Credential routes for officers
+router.post('/:id/credentials', issueCredential as any);
+router.get('/:id/credentials', getOfficerCredentials as any);
 
 export default router;

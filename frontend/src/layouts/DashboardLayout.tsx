@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, LogOut, LayoutDashboard, Users } from 'lucide-react';
+import { Shield, LogOut, LayoutDashboard, Users, ShieldAlert, PhoneCall } from 'lucide-react';
 
 const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -62,6 +62,28 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 >
                   <Users className="h-3.5 w-3.5" />
                   Officer Management
+                </Link>
+                <Link
+                  to="/admin/reports"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    location.pathname.startsWith('/admin/reports')
+                      ? 'bg-rose-950/50 text-rose-400 border border-rose-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                  }`}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  Scam Reports
+                </Link>
+                <Link
+                  to="/admin/ivr-simulator"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    location.pathname.startsWith('/admin/ivr-simulator')
+                      ? 'bg-amber-950/50 text-amber-400 border border-amber-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                  }`}
+                >
+                  <PhoneCall className="h-3.5 w-3.5" />
+                  IVR Simulator
                 </Link>
               </nav>
             )}

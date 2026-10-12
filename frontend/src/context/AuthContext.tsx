@@ -29,7 +29,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
   registerCitizen: (name: string, email: string, phone: string, password: string) => Promise<boolean>;
   clearError: () => void;
@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOfficerDetails(null);
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<User | null> => {
     setError(null);
     setLoading(true);
     try {
@@ -96,15 +96,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('tg_token', receivedToken);
         setToken(receivedToken);
         setUser(receivedUser);
+        setLoading(false);
         // Profile will be checked again on mount/effect to fetch officerDetails if role matches
-        return true;
+        return receivedUser;
       }
-      return false;
+      setLoading(false);
+      return null;
     } catch (err: any) {
       const errMsg = err.response?.data?.error?.message || 'Login failed due to server error.';
       setError(errMsg);
       setLoading(false);
-      return false;
+      return null;
     }
   };
 

@@ -118,7 +118,23 @@ export async function getOfficerById(req: AuthenticatedRequest, res: Response) {
       );
     }
 
-    // Response includes Phase 3 DID identity details and placeholders as required
+    // Phase 4: Check if Verifiable Credential has been issued
+    const vcRes = await pool.query('SELECT * FROM verifiable_credentials WHERE officer_id = $1 ORDER BY created_at DESC', [id]);
+    const activeCredential = vcRes.rows.find((c: any) => c.status === 'ACTIVE') || (vcRes.rows.length > 0 ? vcRes.rows[0] : null);
+
+    // Phase 5: Check if Blockchain Anchor exists for the active credential
+    let blockchainAnchor = null;
+    if (activeCredential) {
+      const bcRes = await pool.query(
+        'SELECT * FROM blockchain_registry WHERE credential_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [activeCredential.credential_id]
+      );
+      if (bcRes.rows.length > 0) {
+        blockchainAnchor = bcRes.rows[0];
+      }
+    }
+
+    // Response includes Phase 3 DID identity details, Phase 4 Verifiable Credential details, Phase 5 Blockchain details
     return res.status(200).json({
       success: true,
       data: {
@@ -136,10 +152,37 @@ export async function getOfficerById(req: AuthenticatedRequest, res: Response) {
             updated_at: didIdentity.updated_at,
             didDocument
           } : null,
+          verifiable_credential: activeCredential ? {
+            id: activeCredential.id,
+            credentialId: activeCredential.credential_id,
+            officerDid: activeCredential.officer_did,
+            issuerDid: activeCredential.issuer_did,
+            credentialType: activeCredential.credential_type,
+            status: activeCredential.status,
+            issuedAt: activeCredential.issued_at,
+            validFrom: activeCredential.valid_from,
+            validUntil: activeCredential.valid_until,
+            credential: typeof activeCredential.credential_payload === 'string'
+              ? JSON.parse(activeCredential.credential_payload)
+              : activeCredential.credential_payload
+          } : null,
+          blockchain_anchor: blockchainAnchor ? {
+            id: blockchainAnchor.id,
+            credentialId: blockchainAnchor.credential_id,
+            credentialHash: blockchainAnchor.credential_hash,
+            officerDidHash: blockchainAnchor.officer_did_hash,
+            issuerDidHash: blockchainAnchor.issuer_did_hash,
+            txHash: blockchainAnchor.transaction_hash || blockchainAnchor.tx_hash,
+            blockNumber: blockchainAnchor.block_number,
+            contractAddress: blockchainAnchor.contract_address,
+            chainId: blockchainAnchor.chain_id,
+            status: blockchainAnchor.registry_status || blockchainAnchor.status,
+            anchoredAt: blockchainAnchor.anchored_at
+          } : null,
           placeholders: {
             did: didIdentity ? didIdentity.did : (officer.did ? officer.did : 'Not issued yet'),
-            credential: 'Not issued yet',
-            blockchain: 'Not registered yet'
+            credential: activeCredential ? activeCredential.credential_id : 'Not issued yet',
+            blockchain: blockchainAnchor ? (blockchainAnchor.transaction_hash || blockchainAnchor.tx_hash) : 'Not registered yet'
           }
         }
       }
@@ -368,6 +411,87 @@ export async function updateOfficerStatus(req: AuthenticatedRequest, res: Respon
             new_status: status
           }
         });
+      }
+    }
+
+    // Phase 4 & Phase 5: Cascade status change to linked Verifiable Credentials and Blockchain Records
+    if (status === 'SUSPENDED') {
+      const activeVcs = await pool.query(
+        "SELECT * FROM verifiable_credentials WHERE officer_id = $1 AND status = 'ACTIVE'",
+        [id]
+      );
+      if (activeVcs.rows.length > 0) {
+        await pool.query(
+          "UPDATE verifiable_credentials SET status = 'SUSPENDED', suspended_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE officer_id = $1 AND status = 'ACTIVE'",
+          [id]
+        );
+        for (const vc of activeVcs.rows) {
+          await logAudit({
+            actorId: req.user?.id || null,
+            action: 'CREDENTIAL_SUSPENDED',
+            entityType: 'VERIFIABLE_CREDENTIAL',
+            entityId: vc.id,
+            metadata: {
+              credential_id: vc.credential_id,
+              officer_id: id,
+              cascade_reason: 'OFFICER_SUSPENDED'
+            }
+          });
+
+          // Phase 5: Sync to blockchain if anchored
+          try {
+            const bcRes = await pool.query('SELECT * FROM blockchain_registry WHERE credential_id = $1', [vc.credential_id]);
+            if (bcRes.rows.length > 0) {
+              const { blockchainService } = await import('../services/blockchain');
+              const receipt = await blockchainService.updateCredentialStatus(bcRes.rows[0].credential_hash, 'SUSPENDED');
+              await pool.query(
+                'UPDATE blockchain_registry SET registry_status = $1, transaction_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE credential_id = $3',
+                ['SUSPENDED', receipt.transactionHash, vc.credential_id]
+              );
+            }
+          } catch (bcErr: any) {
+            console.warn('Phase 5 officer suspend cascade warning:', bcErr?.message || bcErr);
+          }
+        }
+      }
+    } else if (status === 'REVOKED') {
+      const nonRevokedVcs = await pool.query(
+        "SELECT * FROM verifiable_credentials WHERE officer_id = $1 AND status != 'REVOKED'",
+        [id]
+      );
+      if (nonRevokedVcs.rows.length > 0) {
+        await pool.query(
+          "UPDATE verifiable_credentials SET status = 'REVOKED', revoked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE officer_id = $1 AND status != 'REVOKED'",
+          [id]
+        );
+        for (const vc of nonRevokedVcs.rows) {
+          await logAudit({
+            actorId: req.user?.id || null,
+            action: 'CREDENTIAL_REVOKED',
+            entityType: 'VERIFIABLE_CREDENTIAL',
+            entityId: vc.id,
+            metadata: {
+              credential_id: vc.credential_id,
+              officer_id: id,
+              cascade_reason: 'OFFICER_REVOKED'
+            }
+          });
+
+          // Phase 5: Sync to blockchain if anchored
+          try {
+            const bcRes = await pool.query('SELECT * FROM blockchain_registry WHERE credential_id = $1', [vc.credential_id]);
+            if (bcRes.rows.length > 0) {
+              const { blockchainService } = await import('../services/blockchain');
+              const receipt = await blockchainService.updateCredentialStatus(bcRes.rows[0].credential_hash, 'REVOKED');
+              await pool.query(
+                'UPDATE blockchain_registry SET registry_status = $1, transaction_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE credential_id = $3',
+                ['REVOKED', receipt.transactionHash, vc.credential_id]
+              );
+            }
+          } catch (bcErr: any) {
+            console.warn('Phase 5 officer revoke cascade warning:', bcErr?.message || bcErr);
+          }
+        }
       }
     }
 

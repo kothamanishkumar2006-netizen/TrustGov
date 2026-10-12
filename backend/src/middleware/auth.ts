@@ -27,7 +27,7 @@ export async function authenticateToken(req: AuthenticatedRequest, res: Response
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: any };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as { id: string; email: string; role: any };
     
     // Fetch current user from DB to verify status and role are still valid
     const userRes = await pool.query('SELECT id, email, role, status FROM users WHERE id = $1', [decoded.id]);
@@ -83,3 +83,30 @@ export function authorizeRoles(...allowedRoles: ('ADMIN' | 'OFFICER' | 'CITIZEN'
     next();
   };
 }
+
+export async function optionalAuthenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  let token = req.headers['authorization'];
+  if (token && token.startsWith('Bearer ')) {
+    token = token.slice(7, token.length);
+  }
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }) as { id: string; email: string; role: any };
+    const userRes = await pool.query('SELECT id, email, role, status FROM users WHERE id = $1', [decoded.id]);
+    if (userRes.rows.length > 0 && userRes.rows[0].status === 'ACTIVE') {
+      const user = userRes.rows[0];
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      };
+    }
+  } catch {}
+  next();
+}
+

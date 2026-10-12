@@ -43,7 +43,11 @@ export async function registerCitizen(req: AuthenticatedRequest, res: Response) 
     );
 
     const user = userRes.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { algorithm: 'HS256', expiresIn: '24h' }
+    );
 
     // Audit log
     await logAudit({
@@ -120,7 +124,11 @@ export async function login(req: AuthenticatedRequest, res: Response) {
       });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { algorithm: 'HS256', expiresIn: '24h' }
+    );
 
     // Audit login success
     await logAudit({
@@ -201,7 +209,8 @@ export async function getMe(req: AuthenticatedRequest, res: Response) {
       });
     }
 
-    const profile = userRes.rows[0];
+    const profile = { ...userRes.rows[0] };
+    delete (profile as any).password_hash;
 
     // If user is an officer, fetch extra officer metadata
     if (profile.role === 'OFFICER') {

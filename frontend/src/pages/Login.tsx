@@ -28,10 +28,10 @@ const Login: React.FC = () => {
     e.preventDefault();
     if (!email || !password) return;
     setLoading(true);
-    const success = await login(email, password);
+    const loggedUser = await login(email, password);
     setLoading(false);
-    if (success && user) {
-      redirectUser(user.role);
+    if (loggedUser) {
+      redirectUser(loggedUser.role);
     }
   };
 
@@ -39,10 +39,10 @@ const Login: React.FC = () => {
     setLoading(true);
     setEmail(demoEmail);
     setPassword('password123');
-    const success = await login(demoEmail, 'password123');
+    const loggedUser = await login(demoEmail, 'password123');
     setLoading(false);
-    if (success && user) {
-      redirectUser(user.role);
+    if (loggedUser) {
+      redirectUser(loggedUser.role);
     }
   };
 

@@ -8,7 +8,9 @@
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "migrate": "ts-node src/db/migrate.ts",
-    "seed": "ts-node src/db/seed.ts"
+    "seed": "ts-node src/db/seed.ts",
+    "test": "node test/manual_e2e_check.cjs",
+    "test:all": "node test/phase2_officers.test.cjs && node test/phase3_did.test.cjs && node test/phase4_credentials.test.cjs && node test/phase5_blockchain.test.cjs && node test/phase6_challenge_response.test.cjs && node test/phase6_qr.test.cjs && node test/phase7_citizen_verification.test.cjs && node test/phase8_authorization.test.cjs && node test/phase9_scam_reporting.test.cjs && node test/phase10_ivr.test.cjs && node test/phase11_security.test.cjs"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -19,6 +21,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.5",
+    "ethers": "^6.13.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
